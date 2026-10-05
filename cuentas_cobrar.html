@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERP | Cuentas por Cobrar</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  :root{--bg:#f4f6f8;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;--brand:#111827;--teal:#14b8a6}
+  body.dark{--bg:#0f172a;--card:#111827;--text:#f9fafb;--muted:#94a3b8;--line:#263244;--brand:#0f172a;--teal:#2dd4bf}
+  body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+  .card{background:var(--card);border:1px solid var(--line);box-shadow:0 10px 30px rgba(15,23,42,.06)}
+  .soft-input{background:var(--card);border:1px solid var(--line);color:var(--text)}
+  .soft-input:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(20,184,166,.10)}
+  .badge{display:inline-flex;align-items:center;border-radius:999px;padding:.25rem .6rem;font-size:.75rem;font-weight:700}
+  .row-vencida{background:#fef2f2!important}.row-proxima{background:#fffbeb!important}.row-pagada{background:#f0fdf4!important}.row-cancelada{background:#f3f4f6!important}
+  body.dark .row-vencida{background:#3b1010!important} body.dark .row-proxima{background:#3a2d0b!important} body.dark .row-pagada{background:#0d2e1a!important} body.dark .row-cancelada{background:#1f2937!important}
+  .sidebar{background:#111827;color:#e5e7eb}.sidebar a{display:flex;gap:.7rem;align-items:center;padding:.75rem 1rem;border-radius:.75rem;cursor:pointer}.sidebar a:hover,.sidebar a.active{background:#1f2937;color:white}
+  .layout>main{min-width:0;overflow-x:hidden}
+  #kpiGrid{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))!important}
+  @media(max-width:900px){.layout{grid-template-columns:1fr!important}.sidebar{position:relative!important;height:auto!important}.table-wrap{max-width:100%;overflow:auto}}
+  /* ── Modo oscuro: cobertura total (badges, tablas, textos, overlays) ── */
+  body.dark{color-scheme:dark}
+  body.dark [style*="f8fafc"]{background:#1e293b!important;color:#94a3b8!important}
+  body.dark .bg-slate-100{background:#1e293b!important}
+  body.dark .bg-slate-50{background:#0b1220!important}
+  body.dark .text-slate-700,body.dark .text-slate-600,body.dark .text-slate-500,body.dark .text-slate-400{color:#94a3b8!important}
+  body.dark .badge.bg-red-100{background:#3b1010!important;color:#fca5a5!important}
+  body.dark .badge.bg-yellow-100{background:#3a2d0b!important;color:#fcd34d!important}
+  body.dark .badge.bg-green-100{background:#0d2e1a!important;color:#86efac!important}
+  body.dark .badge.bg-blue-100{background:#0c2a4d!important;color:#93c5fd!important}
+  body.dark .badge.bg-gray-100{background:#1f2937!important;color:#cbd5e1!important}
+  body.dark .text-red-600,body.dark .text-red-700{color:#f87171!important}
+  body.dark .text-green-600,body.dark .text-green-700{color:#4ade80!important}
+  body.dark .text-blue-600,body.dark .text-blue-700{color:#60a5fa!important}
+  body.dark .text-yellow-700{color:#fcd34d!important}
+  body.dark .border-slate-700{border-color:#263244!important}
+  body.dark input::placeholder,body.dark textarea::placeholder{color:#64748b}
+  /* Píldora de días vencidos */
+  .dias-pill{display:inline-block;font-weight:800;font-size:.72rem;border-radius:999px;padding:.1rem .5rem}
+  .dias-venc{background:#fee2e2;color:#b91c1c}.dias-ok{color:var(--muted)}
+  body.dark .dias-venc{background:#3b1010;color:#fca5a5}
+</style>
+</head>
+<body>
+<script>try{if(localStorage.getItem("sda-theme")==="dark")document.body.classList.add("dark");}catch(e){}</script>
+<div class="layout grid grid-cols-[260px_1fr] min-h-screen">
+  <aside class="sidebar sticky top-0 h-screen p-5 flex flex-col">
+    <div class="mb-8">
+      <div class="text-xl font-black tracking-wide">SDA ERP</div>
+      <div class="text-xs text-slate-400">Administración</div>
+    </div>
+    <nav class="space-y-1 flex-1">
+      <a href="index.html"><i data-lucide="file-text"></i>Cotizaciones</a>
+      <a href="index.html"><i data-lucide="shopping-cart"></i>Órdenes de compra</a>
+      <a href="cuentas_cobrar.html" class="active"><i data-lucide="hand-coins"></i>Cuentas por cobrar</a>
+      <a href="facturas_xml.html"><i data-lucide="receipt-text"></i>Facturas XML (por pagar)</a>
+      <a href="index.html?view=reports"><i data-lucide="bar-chart-3"></i>Reportes</a>
+      <a href="inventario.html"><i data-lucide="package"></i>Inventario</a>
+    </nav>
+    <div class="pt-4 border-t border-slate-700 text-xs text-slate-500">JaRe Solutions</div>
+  </aside>
+
+  <main class="p-5 md:p-8">
+    <header class="flex flex-wrap gap-4 justify-between items-center mb-6">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-black">Cuentas por Cobrar</h1>
+        <p class="text-sm" style="color:var(--muted)">Facturación al cliente, saldos pendientes, vencimientos y cobranza.</p>
+      </div>
+      <div class="flex gap-2 flex-wrap">
+        <button onclick="toggleDark()" class="card px-4 py-2 rounded-xl font-bold text-sm">Tema</button>
+        <button onclick="openFromCotizacion()" class="card px-4 py-2 rounded-xl font-bold text-sm">Generar desde cotización</button>
+        <button onclick="openNew()" class="text-white px-4 py-2 rounded-xl font-bold text-sm" style="background:var(--teal)">Nueva cuenta</button>
+      </div>
+    </header>
+
+    <section class="grid gap-4 mb-6" id="kpiGrid"></section>
+
+    <!-- Antigüedad de saldos -->
+    <section class="card rounded-2xl p-5 mb-6">
+      <h3 class="font-black mb-1">Antigüedad de saldos</h3>
+      <p class="text-xs mb-4" style="color:var(--muted)">Distribución de lo que nos deben según los días vencidos</p>
+      <div id="agingBars" class="space-y-3"></div>
+    </section>
+
+    <!-- Filtros -->
+    <section class="card rounded-2xl p-4 mb-4 flex flex-wrap gap-3 items-center">
+      <input id="q" oninput="renderTable()" placeholder="Buscar cliente, RFC, folio, concepto..." class="soft-input rounded-xl px-3 py-2 flex-1 min-w-[200px]">
+      <select id="estatusFilter" onchange="renderTable()" class="soft-input rounded-xl px-3 py-2">
+        <option value="">Todos los estatus</option>
+        <option value="pendiente">Pendiente</option>
+        <option value="parcial">Parcial</option>
+        <option value="pagada">Pagada</option>
+        <option value="cancelada">Cancelada</option>
+      </select>
+      <select id="dueFilter" onchange="renderTable()" class="soft-input rounded-xl px-3 py-2">
+        <option value="">Todos los vencimientos</option>
+        <option value="vencida">Vencidas</option>
+        <option value="proxima">Próximas (7 días)</option>
+        <option value="vigente">Vigentes</option>
+      </select>
+      <button onclick="exportCSV()" class="card px-4 py-2 rounded-xl font-bold text-sm">Exportar CSV</button>
+    </section>
+
+    <!-- Tabla -->
+    <section class="card rounded-2xl overflow-hidden">
+      <div class="table-wrap overflow-auto">
+        <table class="w-full text-sm" id="cxcTable">
+          <thead>
+            <tr class="text-left" style="background:#f8fafc;color:#475569">
+              <th class="p-3">Folio</th><th class="p-3">Cliente</th><th class="p-3">Concepto</th>
+              <th class="p-3 text-right">Total</th><th class="p-3 text-right">Saldo</th>
+              <th class="p-3">Emisión</th><th class="p-3">Vencimiento</th>
+              <th class="p-3 text-right">Días venc.</th>
+              <th class="p-3">Estatus</th><th class="p-3">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="flex justify-between items-center p-3 text-sm" style="color:var(--muted)">
+        <span id="countLabel"></span>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Modal: Nueva / Editar cuenta -->
+<div id="formModal" class="hidden fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
+  <div class="card rounded-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-auto">
+    <div class="flex justify-between items-start mb-4">
+      <h2 id="formTitle" class="text-xl font-black">Nueva cuenta por cobrar</h2>
+      <button onclick="closeForm()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x"></i></button>
+    </div>
+    <input type="hidden" id="f_id">
+    <div class="grid md:grid-cols-2 gap-3">
+      <div class="md:col-span-2">
+        <label class="text-xs font-bold" style="color:var(--muted)">Cliente *</label>
+        <input id="f_cliente" class="soft-input rounded-xl px-3 py-2 w-full mt-1" placeholder="Nombre del cliente">
+      </div>
+      <div>
+        <label class="text-xs font-bold" style="color:var(--muted)">RFC</label>
+        <input id="f_rfc" class="soft-input rounded-xl px-3 py-2 w-full mt-1" placeholder="RFC del cliente">
+      </div>
+      <div>
+        <label class="text-xs font-bold" style="color:var(--muted)">Moneda</label>
+        <select id="f_moneda" class="soft-input rounded-xl px-3 py-2 w-full mt-1"><option>MXN</option><option>USD</option></select>
+      </div>
+      <div class="md:col-span-2">
+        <label class="text-xs font-bold" style="color:var(--muted)">Concepto</label>
+        <input id="f_concepto" class="soft-input rounded-xl px-3 py-2 w-full mt-1" placeholder="Descripción del cargo / proyecto">
+      </div>
+      <div>
+        <label class="text-xs font-bold" style="color:var(--muted)">Fecha de emisión</label>
+        <input type="date" id="f_emision" onchange="recalcVenc()" class="soft-input rounded-xl px-3 py-2 w-full mt-1">
+      </div>
+      <div>
+        <label class="text-xs font-bold" style="color:var(--muted)">Días de crédito</label>
+        <input type="number" id="f_dias" min="0" value="30" onchange="recalcVenc()" class="soft-input rounded-xl px-3 py-2 w-full mt-1">
+      </div>
+      <div>
+        <label class="text-xs font-bold" style="color:var(--muted)">Vencimiento</label>
+        <input type="date" id="f_venc" class="soft-input rounded-xl px-3 py-2 w-full mt-1">
+      </div>
+      <div>
+        <label class="text-xs font-bold" style="color:var(--muted)">Subtotal</label>
+        <input type="number" step="0.01" id="f_subtotal" oninput="recalcTotal()" class="soft-input rounded-xl px-3 py-2 w-full mt-1" placeholder="0.00">
+      </div>
+      <div>
+        <label class="text-xs font-bold" style="color:var(--muted)">IVA</label>
+        <input type="number" step="0.01" id="f_iva" oninput="recalcTotal()" class="soft-input rounded-xl px-3 py-2 w-full mt-1" placeholder="0.00">
+      </div>
+      <div>
+        <label class="text-xs font-bold" style="color:var(--muted)">Total</label>
+        <input type="number" step="0.01" id="f_total" class="soft-input rounded-xl px-3 py-2 w-full mt-1 font-black" placeholder="0.00">
+      </div>
+      <div class="md:col-span-2">
+        <label class="text-xs font-bold" style="color:var(--muted)">Notas</label>
+        <textarea id="f_notas" class="soft-input rounded-xl px-3 py-2 w-full mt-1" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button onclick="closeForm()" class="card flex-1 py-2 rounded-xl font-bold">Cancelar</button>
+      <button onclick="saveCuenta()" class="flex-1 py-2 rounded-xl font-black text-white" style="background:var(--teal)">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Generar desde cotización -->
+<div id="cotModal" class="hidden fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
+  <div class="card rounded-2xl w-full max-w-lg p-6">
+    <div class="flex justify-between items-start mb-4">
+      <h2 class="text-xl font-black">Generar desde cotización</h2>
+      <button onclick="closeCot()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x"></i></button>
+    </div>
+    <label class="text-xs font-bold" style="color:var(--muted)">Cotización</label>
+    <select id="cot_select" class="soft-input rounded-xl px-3 py-2 w-full mt-1 mb-3"></select>
+    <label class="text-xs font-bold" style="color:var(--muted)">Días de crédito</label>
+    <input type="number" id="cot_dias" min="0" value="30" class="soft-input rounded-xl px-3 py-2 w-full mt-1 mb-4">
+    <p class="text-xs mb-4" style="color:var(--muted)">Al generarla, la cotización se marcará como vendida y se creará la cuenta por cobrar con su total.</p>
+    <div class="flex gap-2">
+      <button onclick="closeCot()" class="card flex-1 py-2 rounded-xl font-bold">Cancelar</button>
+      <button onclick="generarDesdeCot()" class="flex-1 py-2 rounded-xl font-black text-white" style="background:var(--teal)">Generar cuenta</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Detalle + abonos -->
+<div id="detailModal" class="hidden fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
+  <div class="card rounded-2xl w-full max-w-3xl p-6 max-h-[90vh] overflow-auto">
+    <div class="flex justify-between items-start mb-4">
+      <div><h2 id="d_title" class="text-xl font-black"></h2><p id="d_sub" class="text-sm" style="color:var(--muted)"></p></div>
+      <button onclick="closeDetail()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x"></i></button>
+    </div>
+    <div id="d_body"></div>
+  </div>
+</div>
+
+<!-- Modal: Registrar abono -->
+<div id="payModal" class="hidden fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
+  <div class="card rounded-2xl w-full max-w-md p-6">
+    <div class="flex justify-between items-start mb-4">
+      <h2 class="text-xl font-black">Registrar abono</h2>
+      <button onclick="closePay()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x"></i></button>
+    </div>
+    <input type="hidden" id="pay_cuenta_id">
+    <p id="pay_info" class="text-sm mb-3" style="color:var(--muted)"></p>
+    <label class="text-xs font-bold" style="color:var(--muted)">Monto a abonar *</label>
+    <input type="number" step="0.01" id="pay_monto" class="soft-input rounded-xl px-3 py-2 w-full mt-1 mb-3 font-black">
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div><label class="text-xs font-bold" style="color:var(--muted)">Fecha</label><input type="date" id="pay_fecha" class="soft-input rounded-xl px-3 py-2 w-full mt-1"></div>
+      <div><label class="text-xs font-bold" style="color:var(--muted)">Método</label><input id="pay_metodo" placeholder="Transferencia, efectivo..." class="soft-input rounded-xl px-3 py-2 w-full mt-1"></div>
+    </div>
+    <label class="text-xs font-bold" style="color:var(--muted)">Referencia</label>
+    <input id="pay_ref" class="soft-input rounded-xl px-3 py-2 w-full mt-1 mb-3" placeholder="No. de operación, folio...">
+    <div class="flex gap-2 mt-2">
+      <button onclick="closePay()" class="card flex-1 py-2 rounded-xl font-bold">Cancelar</button>
+      <button onclick="confirmPay()" class="flex-1 py-2 rounded-xl font-black text-white" style="background:#16a34a">Confirmar abono</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="hidden fixed bottom-6 right-6 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-lg z-[60] text-sm font-bold"></div>
+
+<script>
+const API='api.php'; let rows=[];
+const money=v=>'$'+Number(v||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+const fmt=d=>d?String(d).slice(0,10):'—';
+const todayISO=()=>new Date().toISOString().slice(0,10);
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),3000)}
+async function api(url,opts={}){const r=await fetch(url,opts);const j=await r.json();if(!j.ok)throw new Error(j.error||'Error');return j.data}
+function show(el){el.classList.remove('hidden');el.classList.add('flex')}
+function hide(el){el.classList.add('hidden');el.classList.remove('flex')}
+
+async function init(){
+  lucide.createIcons();
+  try{ await loadData(); await loadAging(); }
+  catch(e){ toast(e.message); }
+}
+
+async function loadData(){
+  const d=await api(`${API}?module=cxc&action=list`);
+  rows=d.rows||[]; renderKpis(d.kpis||{}); renderTable();
+}
+function renderKpis(k){
+  const cards=[
+    ['Por cobrar', money(k.total_por_cobrar), 'hand-coins'],
+    ['Vencido', money(k.total_vencido), 'alert-triangle'],
+    ['Cobrado total', money(k.total_cobrado), 'check-circle'],
+    ['Cobrado del mes', money(k.cobrado_mes), 'calendar'],
+    ['Cuentas activas', (Number(k.num_pendientes||0)+Number(k.num_parciales||0)), 'files'],
+  ];
+  document.getElementById('kpiGrid').innerHTML=cards.map(c=>`<div class="card rounded-2xl p-4"><div class="flex justify-between"><div><p class="text-xs font-bold uppercase" style="color:var(--muted)">${c[0]}</p><p class="text-xl font-black mt-1">${c[1]}</p></div><i data-lucide="${c[2]}" class="text-teal-500"></i></div></div>`).join('');
+  lucide.createIcons();
+}
+async function loadAging(){
+  const d=await api(`${API}?action=cxc_aging`);
+  const b=d.buckets||{};
+  const items=[['Por vencer',b.por_vencer,'#3b82f6'],['1 a 30 días',b.d1_30,'#f59e0b'],['31 a 60 días',b.d31_60,'#f97316'],['61 a 90 días',b.d61_90,'#ef4444'],['Más de 90 días',b.d90_mas,'#991b1b']];
+  const max=Math.max(...items.map(i=>Number(i[1]||0)),1);
+  document.getElementById('agingBars').innerHTML=items.map(([k,v,c])=>`<div><div class="flex justify-between text-sm mb-1"><b>${k}</b><span>${money(v)}</span></div><div class="h-2 rounded-full" style="background:var(--line)"><div class="h-2 rounded-full" style="width:${Math.max(2,Number(v||0)/max*100)}%;background:${c}"></div></div></div>`).join('');
+}
+
+function dueBadge(r){
+  const map={vencida:['Vencida','bg-red-100 text-red-700'],proxima:['Próxima','bg-yellow-100 text-yellow-700'],pagada:['Pagada','bg-green-100 text-green-700'],cancelada:['Cancelada','bg-gray-100 text-gray-700'],vigente:['Vigente','bg-blue-100 text-blue-700']};
+  const m=map[r.due_state]||map.vigente; return `<span class="badge ${m[1]}">${m[0]}</span>`;
+}
+// Días vencidos: positivo = días de atraso; solo aplica a cuentas con saldo (pendiente/parcial).
+function diasVencidos(r){
+  if(!r.fecha_vencimiento || !['pendiente','parcial'].includes(r.estatus)) return null;
+  const venc=new Date(String(r.fecha_vencimiento).slice(0,10)+'T00:00:00');
+  const hoy=new Date(todayISO()+'T00:00:00');
+  return Math.round((hoy-venc)/86400000);
+}
+function diasVencCell(r){
+  const d=diasVencidos(r);
+  if(d===null) return '<span class="dias-ok">—</span>';
+  if(d>0) return `<span class="dias-pill dias-venc">${d} día${d===1?'':'s'}</span>`;
+  if(d===0) return `<span class="dias-pill dias-venc">Hoy</span>`;
+  return `<span class="dias-ok">en ${Math.abs(d)} d</span>`;
+}
+function estatusBadge(e){
+  const map={pendiente:['Pendiente','bg-blue-100 text-blue-700'],parcial:['Parcial','bg-yellow-100 text-yellow-700'],pagada:['Pagada','bg-green-100 text-green-700'],cancelada:['Cancelada','bg-gray-100 text-gray-700']};
+  const m=map[e]||map.pendiente; return `<span class="badge ${m[1]}">${m[0]}</span>`;
+}
+function getFiltered(){
+  const q=document.getElementById('q').value.toLowerCase(), st=document.getElementById('estatusFilter').value, due=document.getElementById('dueFilter').value;
+  return rows.filter(r=>(!q||[r.cliente_nombre,r.cliente_rfc,r.folio,r.concepto].some(x=>String(x||'').toLowerCase().includes(q)))&&(!st||r.estatus===st)&&(!due||r.due_state===due));
+}
+function renderTable(){
+  const data=getFiltered();
+  document.getElementById('tbody').innerHTML=data.map(r=>{
+    let cls=''; if(r.due_state==='vencida')cls='row-vencida'; if(r.due_state==='proxima')cls='row-proxima'; if(r.due_state==='pagada')cls='row-pagada'; if(r.due_state==='cancelada')cls='row-cancelada';
+    const activo=['pendiente','parcial'].includes(r.estatus);
+    return `<tr class="border-t ${cls}" style="border-color:var(--line)">
+      <td class="p-3 font-bold">CXC${r.folio}</td>
+      <td class="p-3">${esc(r.cliente_nombre)}<div class="text-xs" style="color:var(--muted)">${esc(r.cliente_rfc||'')}</div></td>
+      <td class="p-3">${esc(r.concepto||'—')}</td>
+      <td class="p-3 text-right font-bold">${money(r.total)}</td>
+      <td class="p-3 text-right font-black ${Number(r.saldo)>0?'text-red-600':'text-green-600'}">${money(r.saldo)}</td>
+      <td class="p-3">${fmt(r.fecha_emision)}</td>
+      <td class="p-3">${fmt(r.fecha_vencimiento)} ${dueBadge(r)}</td>
+      <td class="p-3 text-right">${diasVencCell(r)}</td>
+      <td class="p-3">${estatusBadge(r.estatus)}</td>
+      <td class="p-3 whitespace-nowrap">
+        <button onclick="openDetail(${r.id})" class="font-bold text-teal-600">Ver</button>
+        ${activo?`<button onclick="openPay(${r.id})" class="font-bold text-green-600 ml-2">Abonar</button>`:''}
+        ${activo?`<button onclick="openEdit(${r.id})" class="font-bold ml-2" style="color:var(--muted)">Editar</button>`:''}
+        ${r.estatus!=='cancelada'&&r.estatus!=='pagada'?`<button onclick="cancelar(${r.id})" class="font-bold text-red-600 ml-2">Cancelar</button>`:''}
+      </td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="10" class="p-6 text-center" style="color:var(--muted)">Sin cuentas por cobrar registradas.</td></tr>`;
+  document.getElementById('countLabel').textContent=`${data.length} cuenta(s)`;
+}
+
+// ── Form nueva/editar ──
+function recalcVenc(){
+  const em=document.getElementById('f_emision').value, dias=Number(document.getElementById('f_dias').value||0);
+  if(em){const d=new Date(em+'T00:00:00');d.setDate(d.getDate()+dias);document.getElementById('f_venc').value=d.toISOString().slice(0,10);}
+}
+function recalcTotal(){
+  const s=Number(document.getElementById('f_subtotal').value||0), i=Number(document.getElementById('f_iva').value||0);
+  document.getElementById('f_total').value=(s+i).toFixed(2);
+}
+function openNew(){
+  document.getElementById('formTitle').textContent='Nueva cuenta por cobrar';
+  ['f_id','f_cliente','f_rfc','f_concepto','f_subtotal','f_iva','f_total','f_notas'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f_moneda').value='MXN';
+  document.getElementById('f_dias').value=30;
+  document.getElementById('f_emision').value=todayISO();
+  recalcVenc(); show(document.getElementById('formModal')); lucide.createIcons();
+}
+async function openEdit(id){
+  const r=await api(`${API}?module=cxc&action=detail&id=${id}`);
+  document.getElementById('formTitle').textContent=`Editar CXC${r.folio}`;
+  document.getElementById('f_id').value=r.id;
+  document.getElementById('f_cliente').value=r.cliente_nombre||'';
+  document.getElementById('f_rfc').value=r.cliente_rfc||'';
+  document.getElementById('f_concepto').value=r.concepto||'';
+  document.getElementById('f_moneda').value=r.moneda||'MXN';
+  document.getElementById('f_emision').value=fmt(r.fecha_emision);
+  document.getElementById('f_dias').value=r.dias_credito||30;
+  document.getElementById('f_venc').value=fmt(r.fecha_vencimiento);
+  document.getElementById('f_subtotal').value=r.subtotal;
+  document.getElementById('f_iva').value=r.iva;
+  document.getElementById('f_total').value=r.total;
+  document.getElementById('f_notas').value=r.notas||'';
+  show(document.getElementById('formModal')); lucide.createIcons();
+}
+function closeForm(){hide(document.getElementById('formModal'))}
+async function saveCuenta(){
+  const payload={
+    id:document.getElementById('f_id').value||0,
+    cliente_nombre:document.getElementById('f_cliente').value.trim(),
+    cliente_rfc:document.getElementById('f_rfc').value.trim(),
+    concepto:document.getElementById('f_concepto').value.trim(),
+    moneda:document.getElementById('f_moneda').value,
+    fecha_emision:document.getElementById('f_emision').value,
+    dias_credito:document.getElementById('f_dias').value,
+    fecha_vencimiento:document.getElementById('f_venc').value,
+    subtotal:document.getElementById('f_subtotal').value,
+    iva:document.getElementById('f_iva').value,
+    total:document.getElementById('f_total').value,
+    notas:document.getElementById('f_notas').value.trim(),
+  };
+  if(!payload.cliente_nombre){toast('El cliente es requerido');return;}
+  if(Number(payload.total)<=0){toast('El total debe ser mayor a cero');return;}
+  try{await api(`${API}?module=cxc&action=save`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    toast('Cuenta guardada');closeForm();await loadData();await loadAging();
+  }catch(e){toast(e.message)}
+}
+
+// ── Generar desde cotización ──
+async function openFromCotizacion(){
+  try{
+    const cots=await api(`${API}?module=cxc&action=cotizaciones_disponibles`);
+    if(!cots.length){toast('No hay cotizaciones disponibles');return;}
+    document.getElementById('cot_select').innerHTML=cots.map(c=>{
+      const cli=String(c.supplier||c.shipto||'Cliente').split('\n')[0];
+      return `<option value="${c.id}">COT${c.folio} · ${esc(cli)} · ${money(c.total)} ${esc(c.currency||'')}</option>`;
+    }).join('');
+    document.getElementById('cot_dias').value=30;
+    show(document.getElementById('cotModal')); lucide.createIcons();
+  }catch(e){toast(e.message)}
+}
+function closeCot(){hide(document.getElementById('cotModal'))}
+async function generarDesdeCot(){
+  const cotId=document.getElementById('cot_select').value, dias=document.getElementById('cot_dias').value;
+  try{await api(`${API}?module=cxc&action=from_cotizacion`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cotizacion_id:cotId,dias_credito:dias})});
+    toast('Cuenta por cobrar generada');closeCot();await loadData();await loadAging();
+  }catch(e){toast(e.message)}
+}
+
+// ── Detalle + abonos ──
+async function openDetail(id){
+  try{
+    const r=await api(`${API}?module=cxc&action=detail&id=${id}`);
+    document.getElementById('d_title').textContent=`CXC${r.folio}`;
+    document.getElementById('d_sub').textContent=`${r.cliente_nombre||''} ${r.cliente_rfc?'· '+r.cliente_rfc:''}`;
+    const pagos=(r.pagos||[]);
+    document.getElementById('d_body').innerHTML=`
+      <div class="grid md:grid-cols-4 gap-3 mb-5">
+        <div class="card rounded-xl p-3"><p class="text-xs font-bold" style="color:var(--muted)">TOTAL</p><p class="text-lg font-black">${money(r.total)}</p></div>
+        <div class="card rounded-xl p-3"><p class="text-xs font-bold" style="color:var(--muted)">COBRADO</p><p class="text-lg font-black text-green-600">${money(r.total-r.saldo)}</p></div>
+        <div class="card rounded-xl p-3"><p class="text-xs font-bold" style="color:var(--muted)">SALDO</p><p class="text-lg font-black ${r.saldo>0?'text-red-600':'text-green-600'}">${money(r.saldo)}</p></div>
+        <div class="card rounded-xl p-3"><p class="text-xs font-bold" style="color:var(--muted)">ESTATUS</p><p class="mt-1">${estatusBadge(r.estatus)}</p></div>
+      </div>
+      <div class="grid md:grid-cols-2 gap-4 mb-5 text-sm">
+        <div><b>Concepto:</b> ${esc(r.concepto||'—')}</div>
+        <div><b>Moneda:</b> ${esc(r.moneda||'MXN')}</div>
+        <div><b>Emisión:</b> ${fmt(r.fecha_emision)}</div>
+        <div><b>Vencimiento:</b> ${fmt(r.fecha_vencimiento)} (${r.dias_credito||0} días)</div>
+        ${r.cotizacion_folio?`<div><b>Cotización:</b> COT${r.cotizacion_folio}</div>`:''}
+        ${r.notas?`<div class="md:col-span-2"><b>Notas:</b> ${esc(r.notas)}</div>`:''}
+      </div>
+      ${['pendiente','parcial'].includes(r.estatus)?`<button onclick="openPay(${r.id})" class="text-white rounded-xl px-4 py-2 font-black mb-4" style="background:#16a34a">Registrar abono</button>`:''}
+      <h3 class="font-black mb-2">Historial de abonos</h3>
+      <div class="overflow-auto"><table class="w-full text-sm"><thead><tr style="background:#f8fafc;color:#475569"><th class="p-2 text-left">Fecha</th><th class="p-2 text-right">Monto</th><th class="p-2 text-left">Método</th><th class="p-2 text-left">Referencia</th><th class="p-2 text-left">Capturó</th><th class="p-2"></th></tr></thead>
+      <tbody>${pagos.length?pagos.map(p=>`<tr class="border-t" style="border-color:var(--line)"><td class="p-2">${fmt(p.fecha_pago)}</td><td class="p-2 text-right font-bold">${money(p.monto)}</td><td class="p-2">${esc(p.metodo||'—')}</td><td class="p-2">${esc(p.referencia||'—')}</td><td class="p-2">${esc(p.creado_por_nombre||'—')}</td><td class="p-2 text-right"><button onclick="deletePago(${p.id},${r.id})" class="text-red-600 font-bold text-xs">Eliminar</button></td></tr>`).join(''):`<tr><td colspan="6" class="p-3 text-center" style="color:var(--muted)">Sin abonos aún</td></tr>`}</tbody></table></div>`;
+    show(document.getElementById('detailModal')); lucide.createIcons();
+  }catch(e){toast(e.message)}
+}
+function closeDetail(){hide(document.getElementById('detailModal'))}
+async function deletePago(id,cuentaId){
+  if(!confirm('¿Eliminar este abono?'))return;
+  try{await api(`${API}?module=cxc&action=pago_delete&id=${id}`,{method:'POST',body:'{}'});toast('Abono eliminado');await loadData();await loadAging();await openDetail(cuentaId);}catch(e){toast(e.message)}
+}
+
+// ── Abono ──
+function openPay(id){
+  const r=rows.find(x=>x.id===id);
+  document.getElementById('pay_cuenta_id').value=id;
+  document.getElementById('pay_info').textContent=r?`${r.cliente_nombre} · Saldo pendiente: ${money(r.saldo)}`:'';
+  document.getElementById('pay_monto').value=r?Number(r.saldo).toFixed(2):'';
+  document.getElementById('pay_fecha').value=todayISO();
+  document.getElementById('pay_metodo').value='';
+  document.getElementById('pay_ref').value='';
+  hide(document.getElementById('detailModal'));
+  show(document.getElementById('payModal')); lucide.createIcons();
+}
+function closePay(){hide(document.getElementById('payModal'))}
+async function confirmPay(){
+  const payload={
+    cuenta_id:document.getElementById('pay_cuenta_id').value,
+    monto:document.getElementById('pay_monto').value,
+    fecha_pago:document.getElementById('pay_fecha').value,
+    metodo:document.getElementById('pay_metodo').value.trim(),
+    referencia:document.getElementById('pay_ref').value.trim(),
+  };
+  if(Number(payload.monto)<=0){toast('Ingresa un monto válido');return;}
+  try{await api(`${API}?module=cxc&action=pago`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    toast('Abono registrado');closePay();await loadData();await loadAging();
+  }catch(e){toast(e.message)}
+}
+
+async function cancelar(id){
+  if(!confirm('¿Cancelar esta cuenta por cobrar?'))return;
+  try{await api(`${API}?module=cxc&action=cancelar&id=${id}`,{method:'POST',body:'{}'});toast('Cuenta cancelada');await loadData();await loadAging();}catch(e){toast(e.message)}
+}
+
+function exportCSV(){
+  const data=getFiltered();
+  const cols=['folio','cliente_nombre','cliente_rfc','concepto','total','saldo','moneda','fecha_emision','fecha_vencimiento','estatus'];
+  const head=[...cols,'dias_vencidos'];
+  const csv=[head.join(','),...data.map(r=>{
+    const d=diasVencidos(r); const dv=(d!==null&&d>0)?d:0;
+    return [...cols.map(c=>r[c]??''),dv].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',');
+  })].join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cuentas_por_cobrar.csv';a.click();URL.revokeObjectURL(a.href);
+}
+function toggleDark(){const d=document.body.classList.toggle('dark');try{localStorage.setItem('sda-theme',d?'dark':'light');}catch(e){}}
+init();
+</script>
+</body>
+</html>

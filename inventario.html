@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERP | Inventario</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  :root{--bg:#f4f6f8;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;--teal:#14b8a6;--teal-light:rgba(20,184,166,.10)}
+  body.dark{--bg:#0f172a;--card:#111827;--text:#f9fafb;--muted:#94a3b8;--line:#263244;--teal:#2dd4bf;--teal-light:rgba(45,212,191,.10)}
+  body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;margin:0}
+  .card{background:var(--card);border:1px solid var(--line);box-shadow:0 10px 30px rgba(15,23,42,.06)}
+  .soft-input{background:var(--card);border:1px solid var(--line);color:var(--text);outline:none;transition:.15s}
+  .soft-input:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-light)}
+  .badge{display:inline-flex;align-items:center;border-radius:999px;padding:.2rem .6rem;font-size:.72rem;font-weight:700;letter-spacing:.02em}
+  .sidebar{background:#111827;color:#e5e7eb}
+  .sidebar a{display:flex;gap:.7rem;align-items:center;padding:.75rem 1rem;border-radius:.75rem;text-decoration:none;color:#e5e7eb;font-weight:500;transition:.15s}
+  .sidebar a:hover,.sidebar a.active{background:#1f2937;color:white}
+  .layout>main{min-width:0;overflow-x:hidden}
+  .tab-btn{padding:.5rem 1.1rem;border-radius:.75rem;font-weight:700;font-size:.875rem;border:none;cursor:pointer;transition:.15s;color:var(--muted);background:transparent}
+  .tab-btn.active{background:var(--teal);color:#fff}
+  .tab-btn:not(.active):hover{background:var(--line)}
+  .panel{display:none}.panel.active{display:block}
+  .kpi-card{background:var(--card);border:1px solid var(--line);border-radius:1rem;padding:1.25rem;box-shadow:0 10px 30px rgba(15,23,42,.06)}
+  .kpi-icon{width:2.5rem;height:2.5rem;border-radius:.75rem;display:flex;align-items:center;justify-content:center}
+  .list-table{width:100%;border-collapse:collapse;font-size:.875rem}
+  .list-table th{background:#f8fafc;color:#475569;text-transform:uppercase;font-size:.7rem;letter-spacing:.04em;padding:.75rem 1rem;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+  body.dark .list-table th{background:#1e293b;color:#94a3b8}
+  .list-table td{padding:.75rem 1rem;border-bottom:1px solid var(--line);vertical-align:middle}
+  .list-table tbody tr:hover{background:#f8fafc}
+  body.dark .list-table tbody tr:hover{background:#1e293b}
+  .btn-teal{background:var(--teal);color:#fff;border:none;border-radius:.75rem;padding:.6rem 1.2rem;font-weight:700;font-size:.875rem;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem;transition:.15s}
+  .btn-teal:hover{background:#0f9488}
+  .btn-outline{background:transparent;border:1.5px solid var(--line);color:var(--text);border-radius:.75rem;padding:.5rem 1rem;font-weight:700;font-size:.875rem;cursor:pointer;transition:.15s}
+  .btn-outline:hover{border-color:var(--teal);color:var(--teal)}
+  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:1rem;z-index:50}
+  .modal-backdrop.open{display:flex}
+  .modal-box{background:var(--card);border-radius:1.25rem;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;padding:1.75rem;box-shadow:0 25px 60px rgba(0,0,0,.25)}
+  .stock-ok{color:#16a34a}.stock-warn{color:#d97706}.stock-empty{color:#dc2626}
+  .mov-entrada{background:#f0fdf4;color:#15803d}.mov-salida{background:#fef2f2;color:#dc2626}
+  body.dark .mov-entrada{background:#052e16;color:#4ade80}body.dark .mov-salida{background:#3b0a0a;color:#f87171}
+  @media(max-width:900px){.layout{grid-template-columns:1fr!important}.sidebar{position:relative!important;height:auto!important}}
+  @media(max-width:640px){.kpi-grid{grid-template-columns:1fr 1fr!important}}
+  /* ── Modo oscuro: cobertura total (badges, tablas, textos, overlays) ── */
+  body.dark{color-scheme:dark}
+  body.dark [style*="f8fafc"]{background:#1e293b!important;color:#94a3b8!important}
+  body.dark .bg-slate-100{background:#1e293b!important}
+  body.dark .bg-slate-50{background:#0b1220!important}
+  body.dark .text-slate-700,body.dark .text-slate-600,body.dark .text-slate-500,body.dark .text-slate-400{color:#94a3b8!important}
+  body.dark .badge.bg-red-100{background:#3b1010!important;color:#fca5a5!important}
+  body.dark .badge.bg-yellow-100{background:#3a2d0b!important;color:#fcd34d!important}
+  body.dark .badge.bg-green-100{background:#0d2e1a!important;color:#86efac!important}
+  body.dark .badge.bg-blue-100{background:#0c2a4d!important;color:#93c5fd!important}
+  body.dark .badge.bg-gray-100{background:#1f2937!important;color:#cbd5e1!important}
+  body.dark .text-red-600,body.dark .text-red-700{color:#f87171!important}
+  body.dark .text-green-600,body.dark .text-green-700{color:#4ade80!important}
+  body.dark .text-blue-600,body.dark .text-blue-700{color:#60a5fa!important}
+  body.dark .text-yellow-700{color:#fcd34d!important}
+  body.dark .border-slate-700{border-color:#263244!important}
+  body.dark input::placeholder,body.dark textarea::placeholder{color:#64748b}
+</style>
+</head>
+<body>
+<script>try{if(localStorage.getItem("sda-theme")==="dark")document.body.classList.add("dark");}catch(e){}</script>
+<div class="layout grid grid-cols-[260px_1fr] min-h-screen">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar sticky top-0 h-screen p-5 flex flex-col">
+    <div class="mb-8">
+      <div class="text-xl font-black tracking-wide">SDA ERP</div>
+      <div class="text-xs text-slate-400">Administración</div>
+    </div>
+    <nav class="space-y-1 flex-1">
+      <a href="index.html"><i data-lucide="file-text"></i>Cotizaciones</a>
+      <a href="index.html"><i data-lucide="shopping-cart"></i>Órdenes de compra</a>
+      <a href="cuentas_cobrar.html"><i data-lucide="hand-coins"></i>Cuentas por cobrar</a>
+      <a href="facturas_xml.html"><i data-lucide="receipt-text"></i>Facturas XML (por pagar)</a>
+      <a href="index.html?view=reports"><i data-lucide="bar-chart-3"></i>Reportes</a>
+      <a class="active" href="inventario.html"><i data-lucide="package"></i>Inventario</a>
+      <a href="index.html"><i data-lucide="settings"></i>Configuración</a>
+    </nav>
+    <div class="pt-4 border-t border-slate-700 text-xs text-slate-500">JaRe Solutions</div>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <main class="p-6 md:p-8">
+
+    <!-- Header -->
+    <header class="flex flex-wrap gap-4 justify-between items-center mb-6">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-black">Inventario</h1>
+        <p class="text-sm mt-1" style="color:var(--muted)">Control de entradas, salidas y valor del stock.</p>
+      </div>
+      <div class="flex gap-2 flex-wrap">
+        <button onclick="toggleDark()" class="btn-outline text-sm">Dark mode</button>
+        <button onclick="openMovModal('entrada')" class="btn-teal"><i data-lucide="arrow-down-circle" style="width:16px;height:16px"></i> Entrada</button>
+        <button onclick="openMovModal('salida')" style="background:#ef4444" class="btn-teal"><i data-lucide="arrow-up-circle" style="width:16px;height:16px"></i> Salida</button>
+      </div>
+    </header>
+
+    <!-- KPIs -->
+    <div class="kpi-grid grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="kpiGrid">
+      <div class="kpi-card"><p class="text-xs font-bold uppercase" style="color:var(--muted)">Productos</p><p class="text-2xl font-black mt-1" id="k-productos">—</p></div>
+      <div class="kpi-card"><p class="text-xs font-bold uppercase" style="color:var(--muted)">Valor total</p><p class="text-2xl font-black mt-1" id="k-valor">—</p></div>
+      <div class="kpi-card"><p class="text-xs font-bold uppercase" style="color:var(--muted)">Stock bajo mínimo</p><p class="text-2xl font-black mt-1 stock-warn" id="k-minimo">—</p></div>
+      <div class="kpi-card"><p class="text-xs font-bold uppercase" style="color:var(--muted)">Sin stock</p><p class="text-2xl font-black mt-1 stock-empty" id="k-sinstock">—</p></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-2 mb-4 flex-wrap">
+      <button class="tab-btn active" onclick="switchTab('catalogo')">Catálogo</button>
+      <button class="tab-btn" onclick="switchTab('movimientos')">Movimientos</button>
+      <button class="tab-btn" onclick="switchTab('reporte')">Reporte de valor</button>
+    </div>
+
+    <!-- ══ TAB: CATÁLOGO ══════════════════════════════════════════ -->
+    <div class="panel active" id="panel-catalogo">
+      <div class="card rounded-2xl overflow-hidden">
+        <div class="flex flex-wrap gap-3 justify-between items-center p-4 border-b" style="border-color:var(--line)">
+          <div class="flex gap-2">
+            <input id="q-cat" oninput="filterCatalog()" class="soft-input rounded-xl px-3 py-2 text-sm" placeholder="Buscar código o descripción…" style="width:220px">
+            <select id="cat-filter" onchange="filterCatalog()" class="soft-input rounded-xl px-3 py-2 text-sm">
+              <option value="">Todas las categorías</option>
+            </select>
+          </div>
+          <button onclick="openProductoModal()" class="btn-teal text-sm"><i data-lucide="plus" style="width:15px;height:15px"></i> Nuevo producto</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="list-table">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th>Categoría</th>
+                <th>Unidad</th>
+                <th class="text-right">Precio unit.</th>
+                <th class="text-right">Stock</th>
+                <th class="text-right">Mínimo</th>
+                <th class="text-right">Valor</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-cat"></tbody>
+          </table>
+        </div>
+        <div class="p-3 text-sm" style="color:var(--muted)" id="cat-count"></div>
+      </div>
+    </div>
+
+    <!-- ══ TAB: MOVIMIENTOS ═══════════════════════════════════════ -->
+    <div class="panel" id="panel-movimientos">
+      <div class="card rounded-2xl overflow-hidden">
+        <div class="flex flex-wrap gap-3 items-center p-4 border-b" style="border-color:var(--line)">
+          <select id="mov-tipo-filter" onchange="loadMovimientos()" class="soft-input rounded-xl px-3 py-2 text-sm">
+            <option value="">Todos</option>
+            <option value="entrada">Entradas</option>
+            <option value="salida">Salidas</option>
+          </select>
+          <input type="date" id="mov-from" onchange="loadMovimientos()" class="soft-input rounded-xl px-3 py-2 text-sm">
+          <input type="date" id="mov-to" onchange="loadMovimientos()" class="soft-input rounded-xl px-3 py-2 text-sm">
+          <button onclick="loadMovimientos()" class="btn-outline text-sm">Filtrar</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="list-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th class="text-right">Cantidad</th>
+                <th class="text-right">Precio unit.</th>
+                <th class="text-right">Total</th>
+                <th>Referencia</th>
+                <th>Usuario</th>
+                <th>Notas</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-mov"></tbody>
+          </table>
+        </div>
+        <div class="p-3 text-sm" style="color:var(--muted)" id="mov-count"></div>
+      </div>
+    </div>
+
+    <!-- ══ TAB: REPORTE ═══════════════════════════════════════════ -->
+    <div class="panel" id="panel-reporte">
+      <div class="card rounded-2xl p-6 mb-4">
+        <h2 class="font-black text-lg mb-4">Reporte de valor del inventario</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div class="rounded-xl p-4" style="background:#f0fdf4;border:1px solid #bbf7d0">
+            <p class="text-xs font-bold uppercase text-green-600">Valor total inventario</p>
+            <p class="text-3xl font-black text-green-700 mt-1" id="rep-valor-total">$0.00</p>
+          </div>
+          <div class="rounded-xl p-4" style="background:#fff7ed;border:1px solid #fed7aa">
+            <p class="text-xs font-bold uppercase text-orange-600">Productos bajo mínimo</p>
+            <p class="text-3xl font-black text-orange-600 mt-1" id="rep-bajo-min">0</p>
+          </div>
+          <div class="rounded-xl p-4" style="background:#fef2f2;border:1px solid #fecaca">
+            <p class="text-xs font-bold uppercase text-red-600">Sin stock</p>
+            <p class="text-3xl font-black text-red-600 mt-1" id="rep-sin-stock">0</p>
+          </div>
+        </div>
+
+        <!-- Tabla reporte por producto -->
+        <div class="overflow-x-auto">
+          <table class="list-table">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Descripción</th>
+                <th>Categoría</th>
+                <th class="text-right">Stock actual</th>
+                <th class="text-right">Precio unit.</th>
+                <th class="text-right">Valor en stock</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-rep"></tbody>
+            <tfoot>
+              <tr style="background:#f8fafc;font-weight:900">
+                <td colspan="5" class="p-3 text-right text-sm uppercase" style="color:var(--muted)">TOTAL GENERAL</td>
+                <td class="p-3 text-right font-black" id="rep-total-foot" style="color:var(--teal)"></td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div class="flex justify-end mt-4">
+          <button onclick="exportReporteCSV()" class="btn-outline text-sm">Exportar CSV</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ══ MODAL: NUEVO/EDITAR PRODUCTO ════════════════════════════════ -->
+<div class="modal-backdrop" id="modalProducto">
+  <div class="modal-box">
+    <div class="flex justify-between items-start mb-5">
+      <h2 class="text-xl font-black" id="modalProductoTitle">Nuevo producto</h2>
+      <button onclick="closeProductoModal()" style="color:var(--muted);font-size:1.5rem;line-height:1;background:none;border:none;cursor:pointer">×</button>
+    </div>
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-bold uppercase mb-1 block" style="color:var(--muted)">Código *</label>
+          <input id="p-codigo" class="soft-input rounded-xl px-3 py-2 w-full" placeholder="Ej: PROD-001">
+        </div>
+        <div>
+          <label class="text-xs font-bold uppercase mb-1 block" style="color:var(--muted)">Unidad</label>
+          <select id="p-unidad" class="soft-input rounded-xl px-3 py-2 w-full">
+            <option>PZ</option><option>KG</option><option>L</option><option>M</option>
+            <option>M2</option><option>M3</option><option>CJ</option><option>PAQ</option><option>JGO</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-bold uppercase mb-1 block" style="color:var(--muted)">Descripción *</label>
+        <input id="p-desc" class="soft-input rounded-xl px-3 py-2 w-full" placeholder="Descripción del producto">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-bold uppercase mb-1 block" style="color:var(--muted)">Precio unitario</label>
+          <input type="number" id="p-precio" class="soft-input rounded-xl px-3 py-2 w-full" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div>
+          <label class="text-xs font-bold uppercase mb-1 block" style="color:var(--muted)">Stock mínimo</label>
+          <input type="number" id="p-stkmin" class="soft-input rounded-xl px-3 py-2 w-full" placeholder="0" min="0">
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-bold uppercase mb-1 block" style="color:var(--muted)">Categoría</label>
+        <input id="p-cat" class="soft-input rounded-xl px-3 py-2 w-full" placeholder="Ej: Materia prima, Herramienta…">
+      </div>
+      <div>
+        <label class="text-xs font-bold uppercase mb-1 block" style="color:var(--muted)">Notas</label>
+        <textarea id="p-notas" class="soft-input rounded-xl px-3 py-2 w-full" rows="2" placeholder="Información adicional…"></textarea>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="closeProductoModal()" class="btn-outline flex-1">Cancelar</button>
+      <button onclick="saveProducto()" class="btn-teal flex-1 justify-center">Guardar producto</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: ENTRADA / SALIDA ══════════════════════════════════════ -->
+<div class="modal-backdrop" id="modalMov">
+  <div class="modal-box">
+    <div class="flex justify-between items-start mb-5">
+      <div>
+        <h2 class="text-xl font-black" id="movModalTitle">Registrar entrada</h2>
+        <p class="text-sm mt-1" id="movModalSub" style="color:var(--muted)"></p>
+      </div>
+      <button onclick="closeMovModal()" style="color:var(--muted);font-size:1.5rem;line-height:1;background:none;border:none;cursor:pointer">×</button>
+    </div>
+
+    <!-- Buscador de producto -->
+    <div class="mb-4">
+      <label class="text-xs font-bold uppercase mb-1 block" style="color:var(--muted)">Producto *</label>
+      <input id="mov-prod-search" oninput="filterMovProductos()" class="soft-input rounded-xl px-3 py-2 w-full" placeholder="Buscar por código o descripción…">
+      <div id="mov-prod-dropdown" class="card rounded-xl mt-1 hidden max-h-48 overflow-y-auto" style="position:relative;z-index:10"></div>
+      <div id="mov-prod-selected" class="hidden mt-2 rounded-xl p-3 text-sm font-bold" style="background:var(--teal-light);border:1px solid var(--teal);color:var(--teal)"></div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div>
+        <label class="text-xs font-bold uppercase mb-1 block" style="color:var(--muted)">Cantidad *</label>
+        <input type="number" id="mov-qty" class="soft-input rounded-xl px-3 py-2 w-full" placeholder="0" min="0.001" step="any">
+      </div>
+      <div>
+        <label class="text-xs font-bold uppercase mb-1 block" style="color:var(--muted)">Precio unitario</label>
+        <input type="number" id="mov-precio" class="soft-input rounded-xl px-3 py-2 w-full" placeholder="0.00" min="0" step="0.01">
+      </div>
+    </div>
+    <div class="mb-4">
+      <label class="text-xs font-bold uppercase mb-1 block" style="color:var(--muted)">Fecha del movimiento *</label>
+      <input type="date" id="mov-fecha" class="soft-input rounded-xl px-3 py-2 w-full">
+    </div>
+    <div class="mb-4">
+      <label class="text-xs font-bold uppercase mb-1 block" style="color:var(--muted)">Referencia</label>
+      <input id="mov-ref" class="soft-input rounded-xl px-3 py-2 w-full" placeholder="Ej: OC-10023, Factura A123…">
+    </div>
+    <div class="mb-1">
+      <label class="text-xs font-bold uppercase mb-1 block" style="color:var(--muted)">Notas</label>
+      <textarea id="mov-notas" class="soft-input rounded-xl px-3 py-2 w-full" rows="2" placeholder="Observaciones del movimiento…"></textarea>
+    </div>
+
+    <div class="flex gap-3 mt-6">
+      <button onclick="closeMovModal()" class="btn-outline flex-1">Cancelar</button>
+      <button onclick="saveMovimiento()" id="movConfirmBtn" class="btn-teal flex-1 justify-center">Confirmar entrada</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" style="position:fixed;bottom:1.5rem;right:1.5rem;z-index:999;display:none;padding:.75rem 1.25rem;border-radius:.875rem;font-weight:700;font-size:.875rem;color:#fff;background:#111827;box-shadow:0 8px 24px rgba(0,0,0,.2);max-width:320px"></div>
+
+<script>
+const API = 'api.php';
+let productos = [], movTipo = 'entrada', editProductoId = null, selProductoId = null;
+
+// ── UTILS ─────────────────────────────────────────────────────────
+function money(v){ return '$'+Number(v||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function esc(s){ const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+function fmt(d){ return d ? d.substring(0,10) : '—'; }
+function toast(msg, ok=true){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.background=ok?'#111827':'#dc2626'; t.style.display='block';
+  setTimeout(()=>t.style.display='none',3200);
+}
+async function api(url, opts={}){
+  const r=await fetch(url,{credentials:'include',...opts});
+  const j=await r.json();
+  if(!j.ok) throw new Error(j.error||'Error');
+  return j.data;
+}
+function toggleDark(){const d=document.body.classList.toggle('dark');try{localStorage.setItem('sda-theme',d?'dark':'light');}catch(e){}}
+
+// ── TABS ──────────────────────────────────────────────────────────
+function switchTab(name){
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active', b.onclick.toString().includes(name)));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  if(name==='movimientos') loadMovimientos();
+  if(name==='reporte') renderReporte();
+}
+// Fix tab active state
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+// ── LOAD KPIs ─────────────────────────────────────────────────────
+async function loadKpis(){
+  try{
+    const k=await api(`${API}?module=inventario&action=kpis`);
+    document.getElementById('k-productos').textContent = k.total_productos||0;
+    document.getElementById('k-valor').textContent     = money(k.valor_total);
+    document.getElementById('k-minimo').textContent    = k.bajo_minimo||0;
+    document.getElementById('k-sinstock').textContent  = k.sin_stock||0;
+    document.getElementById('rep-valor-total').textContent = money(k.valor_total);
+    document.getElementById('rep-bajo-min').textContent    = k.bajo_minimo||0;
+    document.getElementById('rep-sin-stock').textContent   = k.sin_stock||0;
+  }catch(e){ toast(e.message,false); }
+}
+
+// ── CATÁLOGO ──────────────────────────────────────────────────────
+async function loadProductos(){
+  try{
+    productos = await api(`${API}?module=inventario&action=productos_list`);
+    populateCatFilter();
+    renderCatalog();
+  }catch(e){ toast(e.message,false); }
+}
+
+function populateCatFilter(){
+  const cats=[...new Set(productos.map(p=>p.categoria).filter(Boolean))].sort();
+  const sel=document.getElementById('cat-filter');
+  sel.innerHTML='<option value="">Todas las categorías</option>'+cats.map(c=>`<option>${esc(c)}</option>`).join('');
+}
+
+function filterCatalog(){ renderCatalog(); }
+
+function renderCatalog(){
+  const q=document.getElementById('q-cat').value.toLowerCase();
+  const cat=document.getElementById('cat-filter').value;
+  const data=productos.filter(p=>
+    (!q || p.codigo.toLowerCase().includes(q) || p.descripcion.toLowerCase().includes(q)) &&
+    (!cat || p.categoria===cat)
+  );
+  document.getElementById('cat-count').textContent=`${data.length} producto(s)`;
+  document.getElementById('tbody-cat').innerHTML=data.map(p=>{
+    const valor = p.stock_actual * p.precio_unitario;
+    let estadoBadge='', estadoCls='';
+    if(p.stock_actual<=0){
+      estadoBadge='Sin stock'; estadoCls='background:#fef2f2;color:#dc2626';
+    } else if(p.stock_minimo>0 && p.stock_actual<=p.stock_minimo){
+      estadoBadge='Bajo mínimo'; estadoCls='background:#fff7ed;color:#d97706';
+    } else {
+      estadoBadge='OK'; estadoCls='background:#f0fdf4;color:#16a34a';
+    }
+    return `<tr>
+      <td class="p-3 font-mono font-bold text-sm" style="color:var(--teal)">${esc(p.codigo)}</td>
+      <td class="p-3">${esc(p.descripcion)}</td>
+      <td class="p-3 text-sm" style="color:var(--muted)">${esc(p.categoria||'—')}</td>
+      <td class="p-3 text-center">${esc(p.unidad)}</td>
+      <td class="p-3 text-right font-bold">${money(p.precio_unitario)}</td>
+      <td class="p-3 text-right font-black ${p.stock_actual<=0?'stock-empty':p.stock_minimo>0&&p.stock_actual<=p.stock_minimo?'stock-warn':'stock-ok'}">${Number(p.stock_actual).toLocaleString('es-MX')}</td>
+      <td class="p-3 text-right" style="color:var(--muted)">${Number(p.stock_minimo).toLocaleString('es-MX')}</td>
+      <td class="p-3 text-right font-bold">${money(valor)}</td>
+      <td class="p-3"><span class="badge" style="${estadoCls}">${estadoBadge}</span></td>
+      <td class="p-3 whitespace-nowrap">
+        <button onclick="openProductoModal(${p.id})" class="font-bold text-sm" style="color:var(--teal)">Editar</button>
+        <button onclick="openMovModal('entrada',${p.id})" class="font-bold text-sm text-green-600 ml-2">+ Entrada</button>
+        <button onclick="openMovModal('salida',${p.id})" class="font-bold text-sm text-red-500 ml-2">− Salida</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── MODAL PRODUCTO ────────────────────────────────────────────────
+function openProductoModal(id=null){
+  editProductoId=id;
+  document.getElementById('modalProductoTitle').textContent = id ? 'Editar producto' : 'Nuevo producto';
+  if(id){
+    const p=productos.find(x=>x.id===id);
+    if(p){
+      document.getElementById('p-codigo').value = p.codigo;
+      document.getElementById('p-desc').value   = p.descripcion;
+      document.getElementById('p-unidad').value = p.unidad;
+      document.getElementById('p-precio').value = p.precio_unitario;
+      document.getElementById('p-stkmin').value = p.stock_minimo;
+      document.getElementById('p-cat').value    = p.categoria||'';
+      document.getElementById('p-notas').value  = p.notas||'';
+    }
+  } else {
+    ['p-codigo','p-desc','p-precio','p-stkmin','p-cat','p-notas'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('p-unidad').value='PZ';
+  }
+  document.getElementById('modalProducto').classList.add('open');
+}
+function closeProductoModal(){ document.getElementById('modalProducto').classList.remove('open'); editProductoId=null; }
+
+async function saveProducto(){
+  const body={
+    codigo: document.getElementById('p-codigo').value.trim(),
+    descripcion: document.getElementById('p-desc').value.trim(),
+    unidad: document.getElementById('p-unidad').value,
+    precio_unitario: document.getElementById('p-precio').value||0,
+    stock_minimo: document.getElementById('p-stkmin').value||0,
+    categoria: document.getElementById('p-cat').value.trim(),
+    notas: document.getElementById('p-notas').value.trim(),
+  };
+  if(editProductoId) body.id=editProductoId;
+  try{
+    await api(`${API}?module=inventario&action=producto_save`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    toast(editProductoId?'Producto actualizado':'Producto creado');
+    closeProductoModal();
+    await loadProductos(); await loadKpis();
+  }catch(e){ toast(e.message,false); }
+}
+
+// ── MODAL MOVIMIENTO ──────────────────────────────────────────────
+function openMovModal(tipo, productoId=null){
+  movTipo=tipo; selProductoId=productoId;
+  document.getElementById('movModalTitle').textContent = tipo==='entrada' ? 'Registrar entrada' : 'Registrar salida';
+  document.getElementById('movModalSub').textContent   = tipo==='entrada' ? 'Agrega unidades al inventario' : 'Retira unidades del inventario';
+  document.getElementById('movConfirmBtn').textContent = tipo==='entrada' ? 'Confirmar entrada' : 'Confirmar salida';
+  document.getElementById('movConfirmBtn').style.background = tipo==='entrada' ? 'var(--teal)' : '#ef4444';
+  document.getElementById('mov-fecha').value = new Date().toISOString().split('T')[0];
+  ['mov-qty','mov-precio','mov-ref','mov-notas'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('mov-prod-search').value='';
+  document.getElementById('mov-prod-dropdown').classList.add('hidden');
+
+  if(productoId){
+    const p=productos.find(x=>x.id===productoId);
+    if(p){
+      document.getElementById('mov-prod-search').value=`${p.codigo} — ${p.descripcion}`;
+      document.getElementById('mov-prod-selected').textContent=`${p.codigo} · Stock actual: ${Number(p.stock_actual).toLocaleString('es-MX')} ${p.unidad}`;
+      document.getElementById('mov-prod-selected').classList.remove('hidden');
+      document.getElementById('mov-precio').value=p.precio_unitario;
+    }
+  } else {
+    document.getElementById('mov-prod-selected').classList.add('hidden');
+  }
+  document.getElementById('modalMov').classList.add('open');
+}
+function closeMovModal(){ document.getElementById('modalMov').classList.remove('open'); selProductoId=null; }
+
+function filterMovProductos(){
+  const q=document.getElementById('mov-prod-search').value.toLowerCase();
+  const dd=document.getElementById('mov-prod-dropdown');
+  if(!q){ dd.classList.add('hidden'); return; }
+  const matches=productos.filter(p=>p.codigo.toLowerCase().includes(q)||p.descripcion.toLowerCase().includes(q)).slice(0,8);
+  if(!matches.length){ dd.classList.add('hidden'); return; }
+  dd.innerHTML=matches.map(p=>`
+    <div onclick="selectMovProducto(${p.id})" class="p-3 cursor-pointer hover:bg-slate-50 border-b text-sm" style="border-color:var(--line)">
+      <span class="font-bold font-mono" style="color:var(--teal)">${esc(p.codigo)}</span>
+      <span class="ml-2">${esc(p.descripcion)}</span>
+      <span class="ml-2 text-xs" style="color:var(--muted)">Stock: ${Number(p.stock_actual).toLocaleString('es-MX')} ${p.unidad}</span>
+    </div>`).join('');
+  dd.classList.remove('hidden');
+}
+
+function selectMovProducto(id){
+  selProductoId=id;
+  const p=productos.find(x=>x.id===id);
+  document.getElementById('mov-prod-search').value=`${p.codigo} — ${p.descripcion}`;
+  document.getElementById('mov-prod-selected').textContent=`${p.codigo} · Stock actual: ${Number(p.stock_actual).toLocaleString('es-MX')} ${p.unidad}`;
+  document.getElementById('mov-prod-selected').classList.remove('hidden');
+  document.getElementById('mov-prod-dropdown').classList.add('hidden');
+  document.getElementById('mov-precio').value=p.precio_unitario;
+}
+
+async function saveMovimiento(){
+  if(!selProductoId){ toast('Selecciona un producto',false); return; }
+  const body={
+    producto_id: selProductoId,
+    tipo: movTipo,
+    cantidad: document.getElementById('mov-qty').value,
+    precio_unitario: document.getElementById('mov-precio').value||0,
+    fecha_movimiento: document.getElementById('mov-fecha').value,
+    referencia: document.getElementById('mov-ref').value.trim(),
+    notas: document.getElementById('mov-notas').value.trim(),
+  };
+  try{
+    await api(`${API}?module=inventario&action=movimiento`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    toast(movTipo==='entrada'?'Entrada registrada':'Salida registrada');
+    closeMovModal();
+    await loadProductos(); await loadKpis();
+  }catch(e){ toast(e.message,false); }
+}
+
+// ── MOVIMIENTOS ───────────────────────────────────────────────────
+async function loadMovimientos(){
+  const tipo=document.getElementById('mov-tipo-filter').value;
+  const from=document.getElementById('mov-from').value;
+  const to=document.getElementById('mov-to').value;
+  let url=`${API}?module=inventario&action=movimientos_list`;
+  if(tipo) url+=`&tipo=${tipo}`;
+  if(from) url+=`&from=${from}`;
+  if(to)   url+=`&to=${to}`;
+  try{
+    const rows=await api(url);
+    document.getElementById('mov-count').textContent=`${rows.length} movimiento(s)`;
+    document.getElementById('tbody-mov').innerHTML=rows.map(m=>`<tr>
+      <td class="p-3 font-mono text-sm">${fmt(m.fecha_movimiento)}</td>
+      <td class="p-3"><span class="badge ${m.tipo==='entrada'?'mov-entrada':'mov-salida'}">${m.tipo==='entrada'?'Entrada':'Salida'}</span></td>
+      <td class="p-3 font-mono font-bold text-sm" style="color:var(--teal)">${esc(m.codigo)}</td>
+      <td class="p-3">${esc(m.descripcion)}</td>
+      <td class="p-3 text-right font-bold">${Number(m.cantidad).toLocaleString('es-MX')} ${esc(m.unidad)}</td>
+      <td class="p-3 text-right">${money(m.precio_unitario)}</td>
+      <td class="p-3 text-right font-black">${money(m.total)}</td>
+      <td class="p-3 text-sm" style="color:var(--muted)">${esc(m.referencia||'—')}</td>
+      <td class="p-3 font-bold">${esc(m.usuario_nombre)}</td>
+      <td class="p-3 text-sm" style="color:var(--muted)">${esc(m.notas||'—')}</td>
+    </tr>`).join('');
+  }catch(e){ toast(e.message,false); }
+}
+
+// ── REPORTE ───────────────────────────────────────────────────────
+function renderReporte(){
+  let total=0;
+  const tbody=document.getElementById('tbody-rep');
+  tbody.innerHTML=productos.map(p=>{
+    const val=p.stock_actual*p.precio_unitario;
+    total+=val;
+    let estadoBadge='', estadoStyle='';
+    if(p.stock_actual<=0){ estadoBadge='Sin stock'; estadoStyle='background:#fef2f2;color:#dc2626'; }
+    else if(p.stock_minimo>0 && p.stock_actual<=p.stock_minimo){ estadoBadge='Bajo mínimo'; estadoStyle='background:#fff7ed;color:#d97706'; }
+    else { estadoBadge='OK'; estadoStyle='background:#f0fdf4;color:#16a34a'; }
+    return `<tr>
+      <td class="p-3 font-mono font-bold text-sm" style="color:var(--teal)">${esc(p.codigo)}</td>
+      <td class="p-3">${esc(p.descripcion)}</td>
+      <td class="p-3 text-sm" style="color:var(--muted)">${esc(p.categoria||'—')}</td>
+      <td class="p-3 text-right font-bold">${Number(p.stock_actual).toLocaleString('es-MX')} ${esc(p.unidad)}</td>
+      <td class="p-3 text-right">${money(p.precio_unitario)}</td>
+      <td class="p-3 text-right font-black" style="color:var(--teal)">${money(val)}</td>
+      <td class="p-3"><span class="badge" style="${estadoStyle}">${estadoBadge}</span></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('rep-total-foot').textContent=money(total);
+  document.getElementById('rep-valor-total').textContent=money(total);
+}
+
+function exportReporteCSV(){
+  const rows=[['Código','Descripción','Categoría','Unidad','Stock actual','Precio unitario','Valor en stock','Estado']];
+  productos.forEach(p=>{
+    const est=p.stock_actual<=0?'Sin stock':p.stock_minimo>0&&p.stock_actual<=p.stock_minimo?'Bajo mínimo':'OK';
+    rows.push([p.codigo,p.descripcion,p.categoria||'',p.unidad,p.stock_actual,p.precio_unitario,(p.stock_actual*p.precio_unitario).toFixed(2),est]);
+  });
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download=`inventario_${new Date().toISOString().split('T')[0]}.csv`; a.click();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────
+(async()=>{
+  await loadProductos();
+  await loadKpis();
+  lucide.createIcons();
+})();
+</script>
+</body>
+</html>

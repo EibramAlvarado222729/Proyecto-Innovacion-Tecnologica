@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERP | Facturas XML CFDI</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  :root{--bg:#f4f6f8;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;--brand:#111827;--teal:#14b8a6}
+  body.dark{--bg:#0f172a;--card:#111827;--text:#f9fafb;--muted:#94a3b8;--line:#263244;--brand:#0f172a;--teal:#2dd4bf}
+  body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+  .card{background:var(--card);border:1px solid var(--line);box-shadow:0 10px 30px rgba(15,23,42,.06)}
+  .soft-input{background:var(--card);border:1px solid var(--line);color:var(--text)}
+  .badge{display:inline-flex;align-items:center;border-radius:999px;padding:.25rem .6rem;font-size:.75rem;font-weight:700}
+  .row-vencida{background:#fef2f2!important}.row-proxima{background:#fffbeb!important}.row-pagada{background:#f0fdf4!important}.row-cancelada{background:#f3f4f6!important}
+  body.dark .row-vencida{background:#3b1010!important} body.dark .row-proxima{background:#3a2d0b!important} body.dark .row-pagada{background:#0d2e1a!important} body.dark .row-cancelada{background:#1f2937!important}
+  .drop-active{border-color:var(--teal)!important;background:rgba(20,184,166,.08)}
+  .sidebar{background:#111827;color:#e5e7eb}.sidebar a{display:flex;gap:.7rem;align-items:center;padding:.75rem 1rem;border-radius:.75rem}.sidebar a:hover,.sidebar a.active{background:#1f2937;color:white}
+  .layout>main{min-width:0;overflow-x:hidden}
+  #kpiGrid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))!important}
+  @media(max-width:900px){.layout{grid-template-columns:1fr!important}.sidebar{position:relative!important;height:auto!important}.table-wrap{max-width:100%;overflow:auto}}
+  /* ── Modo oscuro: cobertura total (badges, tablas, textos, overlays) ── */
+  body.dark{color-scheme:dark}
+  body.dark [style*="f8fafc"]{background:#1e293b!important;color:#94a3b8!important}
+  body.dark .bg-slate-100{background:#1e293b!important}
+  body.dark .bg-slate-50{background:#0b1220!important}
+  body.dark .text-slate-700,body.dark .text-slate-600,body.dark .text-slate-500,body.dark .text-slate-400{color:#94a3b8!important}
+  body.dark .badge.bg-red-100{background:#3b1010!important;color:#fca5a5!important}
+  body.dark .badge.bg-yellow-100{background:#3a2d0b!important;color:#fcd34d!important}
+  body.dark .badge.bg-green-100{background:#0d2e1a!important;color:#86efac!important}
+  body.dark .badge.bg-blue-100{background:#0c2a4d!important;color:#93c5fd!important}
+  body.dark .badge.bg-gray-100{background:#1f2937!important;color:#cbd5e1!important}
+  body.dark .text-red-600,body.dark .text-red-700{color:#f87171!important}
+  body.dark .text-green-600,body.dark .text-green-700{color:#4ade80!important}
+  body.dark .text-blue-600,body.dark .text-blue-700{color:#60a5fa!important}
+  body.dark .text-yellow-700{color:#fcd34d!important}
+  body.dark .border-slate-700{border-color:#263244!important}
+  body.dark input::placeholder,body.dark textarea::placeholder{color:#64748b}
+</style>
+</head>
+<body>
+<script>try{if(localStorage.getItem('sda-theme')==='dark')document.body.classList.add('dark');}catch(e){}</script>
+<div class="layout grid grid-cols-[260px_1fr] min-h-screen">
+  <aside class="sidebar sticky top-0 h-screen p-5">
+    <div class="mb-8">
+      <div class="text-xl font-black tracking-wide">SDA ERP</div>
+      <div class="text-xs text-slate-400">Administración</div>
+    </div>
+    <nav class="space-y-2">
+      <a href="index.html"><i data-lucide="file-text"></i>Cotizaciones</a>
+      <a href="index.html"><i data-lucide="shopping-cart"></i>Órdenes de compra</a>
+      <a href="cuentas_cobrar.html"><i data-lucide="hand-coins"></i>Cuentas por cobrar</a>
+      <a class="active" href="facturas_xml.html"><i data-lucide="receipt-text"></i>Facturas XML (por pagar)</a>
+      <a href="index.html?view=reports"><i data-lucide="bar-chart-3"></i>Reportes</a>
+      <a href="inventario.html"><i data-lucide="package"></i>Inventario</a>
+      <a href="index.html"><i data-lucide="settings"></i>Configuración</a>
+    </nav>
+  </aside>
+
+  <main class="p-5 md:p-8">
+    <header class="flex flex-wrap gap-4 justify-between items-center mb-6">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-black">Carga y Gestión de Facturas XML CFDI</h1>
+        <p class="text-sm" style="color:var(--muted)">Reporte administrativo de proveedores, vencimientos, estatus y XML fiscal.</p>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="toggleDark()" class="card px-4 py-2 rounded-xl font-bold text-sm">Dark mode</button>
+        <button onclick="location.href='index.html'" class="bg-slate-900 text-white px-4 py-2 rounded-xl font-bold text-sm">Volver al ERP</button>
+      </div>
+    </header>
+
+    <section class="grid gap-4 mb-6" id="kpiGrid"></section>
+
+    <section class="card rounded-2xl p-5 mb-6">
+      <div class="flex flex-wrap gap-4 justify-between items-start">
+        <div>
+          <h2 class="font-black text-lg">Subir XML CFDI</h2>
+          <p class="text-sm" style="color:var(--muted)">Selecciona el proveedor antes de cargar. Los días de crédito se toman de su perfil para calcular el vencimiento.</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="openProvModal()" class="border border-teal-500 text-teal-600 px-4 py-2 rounded-xl font-black text-sm">+ Proveedor</button>
+          <button onclick="document.getElementById('xmlInput').click()" class="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-xl font-black">Seleccionar XML</button>
+        </div>
+      </div>
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-sm font-bold mb-1">Proveedor <span class="text-red-500">*</span></label>
+          <select id="uploadSupplierId" onchange="onSupplierChange()" class="soft-input rounded-xl px-3 py-2 w-full">
+            <option value="">— Selecciona un proveedor —</option>
+          </select>
+          <p class="text-xs mt-1" style="color:var(--muted)">Si el proveedor no existe, crea uno primero con su días de crédito configurados.</p>
+        </div>
+        <div id="supplierInfoBox" class="hidden rounded-xl p-3 bg-teal-50 border border-teal-200">
+          <p class="text-sm font-black text-teal-700" id="supplierInfoName"></p>
+          <p class="text-sm text-teal-600" id="supplierInfoDays"></p>
+          <p class="text-xs text-teal-500" id="supplierInfoForm"></p>
+        </div>
+      </div>
+      <div id="dropzone" class="mt-2 border-2 border-dashed rounded-2xl p-8 text-center" style="border-color:var(--line)">
+        <i data-lucide="upload-cloud" class="mx-auto mb-3 w-10 h-10 text-teal-500"></i>
+        <p class="font-bold">Suelta aquí tus archivos XML</p>
+        <p class="text-sm" style="color:var(--muted)">Acepta carga múltiple y valida duplicados por UUID.</p>
+        <input id="xmlInput" type="file" accept=".xml,text/xml" multiple hidden>
+        <div id="uploadResults" class="mt-4 text-left grid gap-2"></div>
+      </div>
+    </section>
+
+    <!-- Modal Proveedor -->
+    <div id="modalProv" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+      <div class="card rounded-2xl max-w-lg w-full p-6">
+        <div class="flex justify-between mb-4">
+          <h2 class="text-xl font-black" id="modalProvTitle">Proveedor</h2>
+          <button onclick="closeProvModal()" class="text-2xl">×</button>
+        </div>
+        <input type="hidden" id="provEditId">
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div><label class="text-xs font-bold">Nombre / Razón social *</label><input id="provName" class="soft-input rounded-xl px-3 py-2 w-full mt-1" placeholder="Proveedora ABC S.A."></div>
+          <div><label class="text-xs font-bold">RFC *</label><input id="provRfc" class="soft-input rounded-xl px-3 py-2 w-full mt-1" placeholder="ABC010101XY0"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="text-xs font-bold">Días de crédito *</label>
+            <input id="provDays" type="number" min="0" max="365" value="30" class="soft-input rounded-xl px-3 py-2 w-full mt-1">
+            <p class="text-xs mt-1" style="color:var(--muted)">Días a partir de la fecha de factura</p>
+          </div>
+          <div><label class="text-xs font-bold">Forma de pago preferida</label>
+            <select id="provPayForm" class="soft-input rounded-xl px-3 py-2 w-full mt-1">
+              <option value="">Sin especificar</option>
+              <option value="Transferencia SPEI">Transferencia SPEI</option>
+              <option value="Cheque">Cheque</option>
+              <option value="Efectivo">Efectivo</option>
+              <option value="Tarjeta de crédito">Tarjeta de crédito</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div><label class="text-xs font-bold">Email</label><input id="provEmail" type="email" class="soft-input rounded-xl px-3 py-2 w-full mt-1" placeholder="cuentas@proveedor.com"></div>
+          <div><label class="text-xs font-bold">Teléfono</label><input id="provPhone" class="soft-input rounded-xl px-3 py-2 w-full mt-1" placeholder="55 1234 5678"></div>
+        </div>
+        <div class="mb-4"><label class="text-xs font-bold">Notas / Condiciones de pago</label><textarea id="provNotes" class="soft-input rounded-xl px-3 py-2 w-full mt-1" rows="2" placeholder="Ej: pago los días 15 y último de mes..."></textarea></div>
+        <div class="flex gap-2 justify-end">
+          <button onclick="closeProvModal()" class="card px-4 py-2 rounded-xl font-bold text-sm">Cancelar</button>
+          <button onclick="saveProvider()" class="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-xl font-black">Guardar proveedor</button>
+        </div>
+        <div id="provModalMsg" class="mt-3"></div>
+      </div>
+    </div>
+
+    <section class="grid grid-cols-1 xl:grid-cols-4 gap-4 mb-6">
+      <div class="card rounded-2xl p-5 xl:col-span-2"><h3 class="font-black mb-3">Facturas por estatus</h3><div id="statusChart" class="space-y-3"></div></div>
+      <div class="card rounded-2xl p-5 xl:col-span-2"><h3 class="font-black mb-3">Gastos por proveedor</h3><div id="supplierChart" class="space-y-3"></div></div>
+    </section>
+
+    <section class="card rounded-2xl p-5">
+      <div class="flex flex-wrap gap-3 justify-between mb-4">
+        <div>
+          <h2 class="font-black text-lg">Reporte general de facturas</h2>
+          <p class="text-sm" style="color:var(--muted)">Tabla estilo ERP/Excel con búsqueda, filtros, exportación y acciones.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="exportCSV()" class="card px-3 py-2 rounded-xl font-bold text-sm">CSV</button>
+          <button onclick="window.print()" class="card px-3 py-2 rounded-xl font-bold text-sm">PDF</button>
+          <button onclick="exportExcel()" class="card px-3 py-2 rounded-xl font-bold text-sm">Excel</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+        <input id="q" oninput="renderTable()" class="soft-input rounded-xl px-3 py-2 md:col-span-2" placeholder="Buscar UUID, proveedor, RFC o folio">
+        <select id="statusFilter" onchange="renderTable()" class="soft-input rounded-xl px-3 py-2"><option value="">Todos los estatus</option></select>
+        <select id="dueFilter" onchange="renderTable()" class="soft-input rounded-xl px-3 py-2"><option value="">Todos</option><option value="vencida">Vencidas</option><option value="proxima">Próximas a vencer</option><option value="pagada">Pagadas</option></select>
+        <select id="currencyFilter" onchange="renderTable()" class="soft-input rounded-xl px-3 py-2"><option value="">Todas las monedas</option><option>MXN</option><option>USD</option></select>
+      </div>
+
+      <div class="table-wrap overflow-auto rounded-xl border" style="border-color:var(--line)">
+        <table class="w-full text-sm" id="invoiceTable">
+          <thead class="bg-slate-100 text-slate-700 sticky top-0">
+            <tr>
+              <th class="p-3 text-left"><input type="checkbox" onclick="toggleAll(this)"></th>
+              <th class="p-3 text-left cursor-pointer" onclick="sortBy('id')">No.</th>
+              <th class="p-3 text-left cursor-pointer" onclick="sortBy('supplier_name')">Proveedor</th>
+              <th class="p-3 text-left">RFC</th>
+              <th class="p-3 text-left">UUID</th>
+              <th class="p-3 text-left">Factura</th>
+              <th class="p-3 text-right cursor-pointer" onclick="sortBy('subtotal')">Subtotal</th>
+              <th class="p-3 text-right">IVA</th>
+              <th class="p-3 text-right cursor-pointer" onclick="sortBy('total')">Total</th>
+              <th class="p-3 text-left">Moneda</th>
+              <th class="p-3 text-left cursor-pointer" onclick="sortBy('issue_date')">Fecha factura</th>
+              <th class="p-3 text-left">Método</th>
+              <th class="p-3 text-left">Días créd.</th>
+              <th class="p-3 text-left">Estatus</th>
+              <th class="p-3 text-left">Vencimiento</th>
+              <th class="p-3 text-left">Usuario</th>
+              <th class="p-3 text-left">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="flex justify-between items-center mt-4 text-sm" style="color:var(--muted)"><span id="countLabel"></span><div class="flex gap-2"><button onclick="prevPage()" class="card px-3 py-1 rounded-lg">Anterior</button><span id="pageLabel"></span><button onclick="nextPage()" class="card px-3 py-1 rounded-lg">Siguiente</button></div></div>
+    </section>
+  </main>
+</div>
+
+<div id="modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+  <div class="card rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-auto p-6">
+    <div class="flex justify-between gap-3 mb-4"><div><h2 class="text-xl font-black" id="modalTitle">Detalle factura</h2><p class="text-sm" id="modalSub" style="color:var(--muted)"></p></div><button onclick="closeModal()" class="text-2xl">×</button></div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div id="toast" class="fixed right-4 bottom-4 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl hidden"></div>
+
+<script>
+const API='api.php'; let rows=[], statuses=[], page=1, perPage=12, sortKey='issue_date', sortDir='desc';
+const money=v=>'$'+Number(v||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+const fmt=d=>d?String(d).slice(0,10):'—';
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),3000)}
+async function api(url,opts={}){const r=await fetch(url,opts);const j=await r.json();if(!j.ok)throw new Error(j.error||'Error');return j.data}
+async function init(){lucide.createIcons(); wireUpload(); await loadStatuses(); await loadProviders(); await loadData();}
+async function loadStatuses(){statuses=await api(`${API}?module=facturas&action=statuses`); statusFilter.innerHTML='<option value="">Todos los estatus</option>'+statuses.map(s=>`<option>${esc(s.name)}</option>`).join('')}
+async function loadData(){try{const d=await api(`${API}?module=facturas&action=list`);rows=d.rows||[];renderKpis(d.kpis||{});renderCharts();renderTable()}catch(e){toast(e.message)}}
+function renderKpis(k){const cards=[['Total facturas',k.total_facturas||0,'receipt-text'],['Total general',money(k.total_general),'wallet'],['Total pagado',money(k.total_pagado),'check-circle'],['Total pendiente',money(k.total_pendiente),'clock'],['Total IVA',money(k.total_iva),'percent'],['Facturas del mes',k.facturas_mes||0,'calendar']];kpiGrid.innerHTML=cards.map(c=>`<div class="card rounded-2xl p-4"><div class="flex justify-between"><div><p class="text-xs font-bold uppercase" style="color:var(--muted)">${c[0]}</p><p class="text-xl font-black mt-1">${c[1]}</p></div><i data-lucide="${c[2]}" class="text-teal-500"></i></div></div>`).join('');lucide.createIcons()}
+function renderCharts(){const byStatus={}, bySupplier={};rows.forEach(r=>{byStatus[r.status_name||'Sin estatus']=(byStatus[r.status_name||'Sin estatus']||0)+1;bySupplier[r.supplier_name||'Sin proveedor']=(bySupplier[r.supplier_name||'Sin proveedor']||0)+Number(r.total||0)});statusChart.innerHTML=barList(byStatus,false);supplierChart.innerHTML=barList(bySupplier,true)}
+function barList(obj,isMoney){let max=Math.max(...Object.values(obj),1);return Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>`<div><div class="flex justify-between text-sm mb-1"><b>${esc(k)}</b><span>${isMoney?money(v):v}</span></div><div class="h-2 bg-slate-200 rounded-full"><div class="h-2 bg-teal-500 rounded-full" style="width:${Math.max(5,v/max*100)}%"></div></div></div>`).join('')||'<p class="text-sm text-slate-400">Sin datos</p>'}
+function getFiltered(){const q=document.getElementById('q').value.toLowerCase(), st=statusFilter.value, due=dueFilter.value, cur=currencyFilter.value;let out=rows.filter(r=>(!q||[r.uuid,r.supplier_name,r.supplier_rfc,r.folio,r.invoice_number].some(x=>String(x||'').toLowerCase().includes(q)))&&(!st||r.status_name===st)&&(!due||r.due_state===due)&&(!cur||r.currency===cur));out.sort((a,b)=>{let A=a[sortKey]??'',B=b[sortKey]??''; if(!isNaN(A)&&!isNaN(B)){A=Number(A);B=Number(B)} return (A>B?1:A<B?-1:0)*(sortDir==='asc'?1:-1)});return out}
+function renderTable(){const data=getFiltered(), start=(page-1)*perPage, slice=data.slice(start,start+perPage);tbody.innerHTML=slice.map(r=>{let cls=''; if(r.due_state==='vencida')cls='row-vencida'; if(r.due_state==='proxima')cls='row-proxima'; if(r.due_state==='pagada')cls='row-pagada'; if(r.due_state==='cancelada')cls='row-cancelada'; return `<tr class="border-t ${cls}" style="border-color:var(--line)"><td class="p-3"><input class="rowcheck" type="checkbox" value="${r.id}"></td><td class="p-3 font-bold">${r.id}</td><td class="p-3">${esc(r.supplier_name)}</td><td class="p-3">${esc(r.supplier_rfc)}</td><td class="p-3 font-mono text-xs">${esc(r.uuid)}</td><td class="p-3">${esc(r.invoice_number||r.folio)}</td><td class="p-3 text-right">${money(r.subtotal)}</td><td class="p-3 text-right">${money(r.iva)}</td><td class="p-3 text-right font-black">${money(r.total)}</td><td class="p-3">${esc(r.currency)}</td><td class="p-3">${fmt(r.issue_date)}</td><td class="p-3">${esc(r.payment_method)}</td><td class="p-3 text-center font-bold text-teal-600">${r.supplier_payment_days ?? '—'}d</td><td class="p-3">${statusBadge(r)}</td><td class="p-3">${dueBadge(r)}</td><td class="p-3">${esc(r.uploaded_by_name||'—')}</td><td class="p-3"><button onclick="openDetail(${r.id})" class="font-bold text-teal-600">Ver</button> ${(!['pagada','cancelada'].includes(r.due_state))?`<button onclick="openPayModal(${r.id},\`${r.supplier_name||""}\`,\`${r.total||0}\`)" class="font-bold text-green-600 ml-2">Pagar</button>`:""} <button onclick="deleteInvoice(${r.id})" class="font-bold text-red-600 ml-2">Eliminar</button></td></tr>`}).join(''); countLabel.textContent=`${data.length} facturas`; pageLabel.textContent=`Página ${page} de ${Math.max(1,Math.ceil(data.length/perPage))}`}
+function statusBadge(r){return `<span class="badge" style="background:${r.status_color||'#e5e7eb'}22;color:${r.status_color||'#111'}">${esc(r.status_name||'Pendiente')}</span>`}
+function dueBadge(r){const map={vencida:['Vencida','bg-red-100 text-red-700'],proxima:['Próxima','bg-yellow-100 text-yellow-700'],pagada:['Pagada','bg-green-100 text-green-700'],cancelada:['Cancelada','bg-gray-100 text-gray-700'],vigente:['Vigente','bg-blue-100 text-blue-700']};let m=map[r.due_state]||map.vigente;return `<span class="badge ${m[1]}">${m[0]}</span><div class="text-xs text-slate-500">${fmt(r.due_date)}</div>`}
+function sortBy(k){sortDir=sortKey===k&&sortDir==='asc'?'desc':'asc';sortKey=k;renderTable()} function prevPage(){if(page>1){page--;renderTable()}} function nextPage(){if(page<Math.ceil(getFiltered().length/perPage)){page++;renderTable()}}
+function toggleAll(cb){document.querySelectorAll('.rowcheck').forEach(x=>x.checked=cb.checked)}
+function wireUpload(){const dz=dropzone,input=xmlInput;['dragenter','dragover'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.add('drop-active')}));['dragleave','drop'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.remove('drop-active')}));dz.addEventListener('drop',e=>uploadFiles(e.dataTransfer.files));input.addEventListener('change',e=>uploadFiles(e.target.files))}
+async function uploadFiles(files){
+  if(!files.length)return;
+  const suppId=document.getElementById('uploadSupplierId').value;
+  if(!suppId){toast('Selecciona un proveedor antes de subir el XML');return;}
+  const fd=new FormData();
+  [...files].forEach(f=>fd.append('xml_files[]',f));
+  fd.append('supplier_id', suppId);
+  uploadResults.innerHTML='<div class="text-sm font-bold text-teal-600">Procesando XML...</div>';
+  try{
+    const res=await api(`${API}?module=facturas&action=upload`,{method:'POST',body:fd});
+    const suppSel=document.getElementById('uploadSupplierId');
+    const suppName=suppSel.options[suppSel.selectedIndex]?.text||'';
+    const days=suppSel.options[suppSel.selectedIndex]?.dataset?.days||'?';
+    uploadResults.innerHTML=res.map(x=>`<div class="p-3 rounded-xl ${x.ok?'bg-green-50 text-green-700':'bg-red-50 text-red-700'}"><b>${esc(x.file)}</b> ${x.ok?`importado · UUID: ${esc(x.uuid)} · vencimiento en <b>${days} días</b> (${esc(suppName)})` : 'error: '+esc(x.error)}</div>`).join('');
+    await loadData();
+  }catch(e){toast(e.message)}
+}
+async function openDetail(id){try{const r=await api(`${API}?module=facturas&action=detail&id=${id}`);modalTitle.textContent=`Factura ${r.invoice_number||r.folio||r.id}`;modalSub.textContent=`${r.supplier_name||''} · ${r.uuid}`;modalBody.innerHTML=`<div class="grid md:grid-cols-3 gap-4 mb-4"><div class="card rounded-xl p-4"><b>Total</b><p class="text-xl font-black">${money(r.total)}</p></div><div class="card rounded-xl p-4"><b>IVA</b><p class="text-xl font-black">${money(r.iva)}</p></div><div class="card rounded-xl p-4"><b>Estatus</b><p>${statusBadge(r)}</p></div></div><div class="grid md:grid-cols-2 gap-4"><div><h3 class="font-black mb-2">Datos fiscales</h3><p><b>UUID:</b> ${esc(r.uuid)}</p><p><b>Emisor:</b> ${esc(r.supplier_name)} (${esc(r.supplier_rfc)})</p><p><b>Receptor:</b> ${esc(r.receiver_name)} (${esc(r.receiver_rfc)})</p><p><b>Fecha:</b> ${fmt(r.issue_date)}</p><p><b>Método/Forma:</b> ${esc(r.payment_method)} / ${esc(r.payment_form)}</p></div><div><h3 class="font-black mb-2">Cambiar estatus</h3><select id="modalStatus" class="soft-input rounded-xl px-3 py-2 w-full mb-2">${statuses.map(s=>`<option value="${s.id}" ${s.id==r.status_id?'selected':''}>${esc(s.name)}</option>`).join('')}</select><textarea id="modalObs" class="soft-input rounded-xl px-3 py-2 w-full" placeholder="Observaciones">${esc(r.observations||'')}</textarea><button onclick="saveStatus(${r.id})" class="mt-2 bg-teal-500 text-white rounded-xl px-4 py-2 font-black">Guardar estatus</button></div></div><h3 class="font-black mt-6 mb-2">Conceptos</h3><div class="overflow-auto"><table class="w-full text-sm"><thead><tr class="bg-slate-100"><th class="p-2 text-left">Descripción</th><th class="p-2">Cant.</th><th class="p-2">Unidad</th><th class="p-2 text-right">Precio</th><th class="p-2 text-right">Importe</th></tr></thead><tbody>${(r.items||[]).map(i=>`<tr class="border-t"><td class="p-2">${esc(i.description)}</td><td class="p-2 text-center">${i.quantity}</td><td class="p-2 text-center">${esc(i.unit)}</td><td class="p-2 text-right">${money(i.unit_price)}</td><td class="p-2 text-right">${money(i.amount)}</td></tr>`).join('')}</tbody></table></div><h3 class="font-black mt-6 mb-2">XML formateado</h3><pre class="bg-slate-950 text-green-200 text-xs rounded-xl p-4 overflow-auto max-h-80">${esc(r.xml_content||'XML no disponible')}</pre>`;modal.classList.remove('hidden');modal.classList.add('flex')}catch(e){toast(e.message)}}
+function closeModal(){modal.classList.add('hidden');modal.classList.remove('flex')}
+async function saveStatus(id){try{await api(`${API}?module=facturas&action=update_status&id=${id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status_id:modalStatus.value,observations:modalObs.value})});toast('Estatus actualizado');closeModal();await loadData()}catch(e){toast(e.message)}}
+async function deleteInvoice(id){if(!confirm('¿Eliminar esta factura?'))return;try{await api(`${API}?module=facturas&action=delete&id=${id}`,{method:'POST'});toast('Factura eliminada');await loadData()}catch(e){toast(e.message)}}
+function exportCSV(){const data=getFiltered();const cols=['id','supplier_name','supplier_rfc','uuid','invoice_number','subtotal','iva','total','currency','issue_date','payment_method','payment_form','status_name','due_date','uploaded_by_name'];const csv=[cols.join(','),...data.map(r=>cols.map(c=>'"'+String(r[c]??'').replace(/"/g,'""')+'"').join(','))].join('\n');downloadBlob(csv,'facturas_cfdi.csv','text/csv')}
+function exportExcel(){const html=document.getElementById('invoiceTable').outerHTML;downloadBlob(html,'facturas_cfdi.xls','application/vnd.ms-excel')}
+function downloadBlob(content,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
+function toggleDark(){const d=document.body.classList.toggle('dark');try{localStorage.setItem('sda-theme',d?'dark':'light');}catch(e){}}
+init();
+
+// ——— GESTIÓN DE PROVEEDORES ———
+let suppliersList=[];
+async function loadProviders(){
+  try{
+    suppliersList=await api(`${API}?module=facturas&action=suppliers_list`);
+    const sel=document.getElementById('uploadSupplierId');
+    sel.innerHTML='<option value="">— Selecciona un proveedor —</option>'+
+      suppliersList.map(s=>`<option value="${s.id}" data-days="${s.payment_days}" data-form="${esc(s.payment_form||'')}">${esc(s.name)} · ${esc(s.rfc)}</option>`).join('');
+  }catch(e){console.error('loadProviders',e);}
+}
+function onSupplierChange(){
+  const sel=document.getElementById('uploadSupplierId');
+  const opt=sel.options[sel.selectedIndex];
+  const box=document.getElementById('supplierInfoBox');
+  if(!opt.value){box.classList.add('hidden');return;}
+  const s=suppliersList.find(x=>x.id==opt.value);
+  if(!s){box.classList.add('hidden');return;}
+  document.getElementById('supplierInfoName').textContent=s.name+' · '+s.rfc;
+  document.getElementById('supplierInfoDays').textContent='Días de crédito: '+s.payment_days+' días (vencimiento = fecha factura + '+s.payment_days+' días)';
+  document.getElementById('supplierInfoForm').textContent=s.payment_form?'Forma de pago: '+s.payment_form:'';
+  box.classList.remove('hidden');
+}
+function openProvModal(s=null){
+  document.getElementById('provEditId').value=s?s.id:'';
+  document.getElementById('modalProvTitle').textContent=s?'Editar proveedor':'Nuevo proveedor';
+  document.getElementById('provName').value=s?s.name:'';
+  document.getElementById('provRfc').value=s?s.rfc:'';
+  document.getElementById('provDays').value=s?s.payment_days:30;
+  document.getElementById('provPayForm').value=s?s.payment_form||'':'';
+  document.getElementById('provEmail').value=s?s.email||'':'';
+  document.getElementById('provPhone').value=s?s.phone||'':'';
+  document.getElementById('provNotes').value=s?s.notes||'':'';
+  document.getElementById('provModalMsg').innerHTML='';
+  document.getElementById('modalProv').classList.remove('hidden');
+  document.getElementById('modalProv').classList.add('flex');
+}
+function closeProvModal(){document.getElementById('modalProv').classList.add('hidden');document.getElementById('modalProv').classList.remove('flex');}
+async function saveProvider(){
+  const id=document.getElementById('provEditId').value;
+  const body={
+    name:document.getElementById('provName').value.trim(),
+    rfc:document.getElementById('provRfc').value.trim(),
+    payment_days:parseInt(document.getElementById('provDays').value)||30,
+    payment_form:document.getElementById('provPayForm').value,
+    email:document.getElementById('provEmail').value.trim(),
+    phone:document.getElementById('provPhone').value.trim(),
+    notes:document.getElementById('provNotes').value.trim(),
+  };
+  if(id) body.id=parseInt(id);
+  if(!body.name||!body.rfc){document.getElementById('provModalMsg').innerHTML='<p class="text-red-600 text-sm">Nombre y RFC son requeridos.</p>';return;}
+  try{
+    await api(`${API}?module=facturas&action=suppliers_save`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    toast(id?'Proveedor actualizado':'Proveedor creado');
+    closeProvModal();
+    await loadProviders();
+  }catch(e){document.getElementById('provModalMsg').innerHTML=`<p class="text-red-600 text-sm">${esc(e.message)}</p>`;}
+}
+
+let _payId = null;
+function openPayModal(id, supplier, total) {
+  _payId = id;
+  document.getElementById('payModalSub').textContent = supplier ? 'Proveedor: ' + supplier : '';
+  document.getElementById('payModalTotal').textContent = isNaN(total) ? total : '$' + Number(total).toLocaleString('es-MX', {minimumFractionDigits:2});
+  document.getElementById('payDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('payObs').value = '';
+  const m = document.getElementById('payModal');
+  m.classList.remove('hidden'); m.classList.add('flex');
+}
+function closePayModal() {
+  const m = document.getElementById('payModal');
+  m.classList.add('hidden'); m.classList.remove('flex');
+  _payId = null;
+}
+async function confirmPay() {
+  if (!_payId) return;
+  const fecha = document.getElementById('payDate').value;
+  const obs = document.getElementById('payObs').value.trim();
+  const obs_final = [obs, fecha ? 'Fecha de pago: ' + fecha : ''].filter(Boolean).join(' | ');
+  // Buscar el status_id de "Pagado" en el array statuses
+  const pagadoStatus = statuses.find(s => s.name && s.name.toLowerCase().includes('pagad'));
+  if (!pagadoStatus) { toast('No se encontró el estatus "Pagado" en el sistema'); return; }
+  try {
+    await api(`${API}?module=facturas&action=update_status&id=${_payId}`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ status_id: pagadoStatus.id, observations: obs_final })
+    });
+    toast('Factura marcada como pagada');
+    closePayModal();
+    await loadData();
+  } catch(e) { toast(e.message); }
+}
+
+</script>
+
+<!-- Modal Pagar Factura -->
+<div id="payModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+  <div class="card rounded-2xl w-full max-w-md p-6" style="background:var(--card)">
+    <div class="flex justify-between items-start mb-4">
+      <div>
+        <h2 class="text-xl font-black">Registrar Pago</h2>
+        <p class="text-sm mt-1" style="color:var(--muted)" id="payModalSub"></p>
+      </div>
+      <button onclick="closePayModal()" class="text-2xl leading-none" style="color:var(--muted)">×</button>
+    </div>
+    <div class="space-y-4">
+      <div class="card rounded-xl p-4 flex justify-between items-center" style="background:#f0fdf4;border-color:#bbf7d0">
+        <span class="font-bold text-green-700">Total a pagar</span>
+        <span class="text-xl font-black text-green-700" id="payModalTotal"></span>
+      </div>
+      <div>
+        <label class="text-sm font-bold mb-1 block" style="color:var(--muted)">Fecha de pago</label>
+        <input type="date" id="payDate" class="soft-input rounded-xl px-3 py-2 w-full" />
+      </div>
+      <div>
+        <label class="text-sm font-bold mb-1 block" style="color:var(--muted)">Observaciones (opcional)</label>
+        <textarea id="payObs" class="soft-input rounded-xl px-3 py-2 w-full" rows="2" placeholder="Ej: Transferencia SPEI, referencia 12345..."></textarea>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="closePayModal()" class="card flex-1 py-2 rounded-xl font-bold text-sm">Cancelar</button>
+      <button onclick="confirmPay()" class="flex-1 py-2 rounded-xl font-black text-sm text-white" style="background:#16a34a">Confirmar pago</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
